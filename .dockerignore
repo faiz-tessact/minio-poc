@@ -1,0 +1,8 @@
+staticfiles
+settings
+db.sqlite3
+.tenv
+.venv/
+.evn/
+core/db.sqlite3
+pyrightconfig.json

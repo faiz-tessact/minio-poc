@@ -1,0 +1,97 @@
+name: core
+version: "3.8"
+services:
+  core:
+    restart: always
+    build:
+      context: ./core
+    depends_on:
+      - postgres
+      - minio
+    expose:
+      - ${DJANGO_PORT}
+    ports:
+      - ${DJANGO_PORT}:${DJANGO_PORT}
+    networks:
+      - minionetwork
+    environment:
+      DEBUG: True
+      DJANGO_SECRET: ${DJANGO_SECRET}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+    command: gunicorn wsgi:application -w=1 --bind 0.0.0.0:8000
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  nginx:
+    restart: always
+    build:
+      context: ./nginx/
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes_from:
+      - core
+    networks:
+      - minionetwork
+    depends_on:
+      - core
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  postgres:
+    restart: always
+    image: postgres:latest
+    expose:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: always
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    expose:
+      - '9001:9001'
+    networks:
+      - minionetwork
+    volumes:
+      - 'minio_data:/data'
+      - type: bind
+        source: /Users/faiz/mini
+        target: /data
+    environment:
+      MINIO_ROOT_USER: ROOTNAME
+      MINIO_ROOT_PASSWORD: CHANGEME123
+      MINIO_DEFAULT_BUCKETS: MY_BUCKET
+    command: server /data --console-address ":9001"
+
+networks:
+  minionetwork:
+    driver: bridge
+
+volumes:
+  minio_data:
+    driver: local
+  pgdata:
